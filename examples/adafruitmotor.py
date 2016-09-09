@@ -45,6 +45,55 @@ DIN1 = 5
 DIN2 = 6
 PWMD = 7
 
+class MotorShield(object):
+	def __init__(self,IN1,IN2,PWM):
+		self._IN1 = IN1
+		self._IN2 = IN2
+		self._PWM = PWM
+
+	#on = 0 or 1
+	def IN1(self,on):
+    		pwm.set_pwm(self._IN1, 0, 2047*on)
+
+	#on = 0 or 1
+	def IN2(self,on):
+    		pwm.set_pwm(self._IN2, 0, 2047*on)
+
+	def setspeed(self, percent):
+		pwm.set_pwm(self._PWM,0, (int) (2047* percent))
+
+	def shortBrake(self):
+		self.setspeed(self,0.0)
+
+	def stop(self):
+		self.IN1(0)
+		self.IN2(0)
+		self.setspeed(1)
+
+	def CCW(self, percent):
+		self.IN1(0)
+		self.IN2(1)
+		self.setspeed(percent)
+
+	def CW(self, percent):
+		self.IN1(1)
+		self.IN2(0)
+		self.setspeed(percent)
+
+	#Speed -1.0 til 1.0
+	def speed(self, percent):
+		if (percent>0):
+			self.CW(percent)
+		else:
+			self.CCW(-percent)
+
+M1 = MotorShield(AIN1,AIN2,PWMA)
+M2 = MotorShield(BIN1,BIN2,PWMB)
+M3 = MotorShield(CIN1,CIN2,PWMC)
+M4 = MotorShield(DIN1,DIN2,PWMD)
+
+
+
 # Alternatively specify a different address and/or bus:
 #pwm = Adafruit_PCA9685.PCA9685(address=0x41, busnum=2)
 
@@ -73,12 +122,11 @@ pwm.set_pwm_freq(60)
 #...     time.sleep(1)
 
 
-
-
-print('Moving servo on channel 0, press Ctrl-C to quit...')
-while True:
-    # Move servo on channel O between extremes.
-    pwm.set_pwm(0, 0, servo_min)
-    time.sleep(1)
-    pwm.set_pwm(0, 0, servo_max)
-    time.sleep(1)
+M1.speed(0.8)
+M2.speed(-0.8)
+time.sleep(10)
+M1.speed(-0.8)
+M2.speed(0.8)
+time.sleep(10)
+M1.stop()
+M2.stop()
