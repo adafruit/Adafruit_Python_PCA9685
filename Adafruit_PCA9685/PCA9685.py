@@ -55,11 +55,18 @@ logger = logging.getLogger(__name__)
 def software_reset(i2c=None, **kwargs):
     """Sends a software reset (SWRST) command to all servo drivers on the bus."""
     # Setup I2C interface for device 0x00 to talk to all of them.
+    i2c = setup_i2c(i2c)
+
+    self._device = i2c.get_i2c_device(0x00, **kwargs)
+    self._device.writeRaw8(0x06)  # SWRST
+
+
+def setup_i2c(i2c=None):
     if i2c is None:
         import Adafruit_GPIO.I2C as I2C
         i2c = I2C
-    self._device = i2c.get_i2c_device(0x00, **kwargs)
-    self._device.writeRaw8(0x06)  # SWRST
+
+    return i2c
 
 
 class PCA9685(object):
@@ -68,16 +75,15 @@ class PCA9685(object):
     def __init__(self, address=PCA9685_ADDRESS, i2c=None, **kwargs):
         """Initialize the PCA9685."""
         # Setup I2C interface for the device.
-        if i2c is None:
-            import Adafruit_GPIO.I2C as I2C
-            i2c = I2C
+        i2c = setup_i2c(i2c)
+
         self._device = i2c.get_i2c_device(address, **kwargs)
         self.set_all_pwm(0, 0)
         self._device.write8(MODE2, OUTDRV)
         self._device.write8(MODE1, ALLCALL)
         time.sleep(0.005)  # wait for oscillator
         mode1 = self._device.readU8(MODE1)
-        mode1 = mode1 & ~SLEEP  # wake up (reset sleep)
+        mode1 &= ~SLEEP  # wake up (reset sleep)
         self._device.write8(MODE1, mode1)
         time.sleep(0.005)  # wait for oscillator
 
@@ -91,7 +97,7 @@ class PCA9685(object):
         logger.debug('Estimated pre-scale: {0}'.format(prescaleval))
         prescale = int(math.floor(prescaleval + 0.5))
         logger.debug('Final pre-scale: {0}'.format(prescale))
-        oldmode = self._device.readU8(MODE1);
+        oldmode = self._device.readU8(MODE1)
         newmode = (oldmode & 0x7F) | 0x10    # sleep
         self._device.write8(MODE1, newmode)  # go to sleep
         self._device.write8(PRESCALE, prescale)
