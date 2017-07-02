@@ -65,14 +65,15 @@ def software_reset(i2c=None, **kwargs):
 class PCA9685(object):
     """PCA9685 PWM LED/servo controller."""
 
-    def __init__(self, address=PCA9685_ADDRESS, i2c=None, **kwargs):
+    def __init__(self, address=PCA9685_ADDRESS, i2c=None, clean_start=True, **kwargs):
         """Initialize the PCA9685."""
         # Setup I2C interface for the device.
         if i2c is None:
             import Adafruit_GPIO.I2C as I2C
             i2c = I2C
         self._device = i2c.get_i2c_device(address, **kwargs)
-        self.set_all_pwm(0, 0)
+        if clean_start:
+            self.set_all_pwm(0, 0)
         self._device.write8(MODE2, OUTDRV)
         self._device.write8(MODE1, ALLCALL)
         time.sleep(0.005)  # wait for oscillator
