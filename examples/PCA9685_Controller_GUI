@@ -1,0 +1,161 @@
+#!/usr/bin/python
+from __future__ import division, print_function
+import time
+import sys
+
+###############################################################################
+#
+# This script uses PyQt to create a Graphical User Interface for interacting
+# with an i2c connected PCA9685 12-bit PWM module
+#
+# Note:
+# This script was written on Windows (PyQT4 without access to a PCA9685 device)
+# and has been tested on Raspberry Pi Zero W (Raspbian Jessie) with PyQt5
+#
+# To get PyQt5 on Raspbian Jessie:
+#     apt install python-pyqt5
+###############################################################################
+
+try:
+    # Try importing PyQt5
+    from PyQt5.QtCore import *
+    from PyQt5.QtGui import *
+    from PyQt5.QtWidgets import *    
+except:
+    # Fallback to PyQt4
+    from PyQt4.QtCore import *
+    from PyQt4.QtGui import *
+
+try:
+    # Import the Adafruit_PCA9685 module.
+    from Adafruit_PCA9685 import PCA9685
+except:
+    # Spoof the Adafruit_PCA9685 module if not available
+    print ('************************************************************************')
+    print ('**********                      WARNING                       **********')
+    print ('**********                                                    **********')
+    print ('**********      Error importing Adafruit_PCA9685 module.      **********')
+    print ('**********           PCA9685 calls will be ignored.           **********')
+    print ('**********                                                    **********')
+    print ('**********                      WARNING                       **********')
+    print ('************************************************************************')
+    class PCA9685():
+        def __init__(self,address=0x40, busnum=1):
+            print('# PCA9685(address=' + str(address) + ', busnum=' + str(busnum) + ')')
+        def set_pwm_freq(self,freq):
+            print('# set_pwm_freq(' + str(freq) + ')')
+        def set_pwm(self,channel, null, val):
+            print ('# set_pwm(' + str(channel) + ', ' + str(null) + ', ' + str(val) + ')')
+
+pwm = PCA9685()
+pwm.set_pwm_freq(60)
+
+class MainWindow(QWidget):
+    def setText(self, value):
+        try:
+            return(QString(str(value)))
+        except:
+            return(str(value))
+
+    def __init__(self, parent = None):
+        super(MainWindow, self).__init__(parent)
+
+        self.layout = QGridLayout()
+        self.setLayout(self.layout)
+        self.setWindowTitle("PCA9685 Controller")
+        self.setGeometry(10,50,600,600)
+
+        number_of_channels = 16
+        row = 1
+        servo_min = 150
+        servo_max = 600
+        servo_initial_val = 225
+
+        # Header row
+        self.lbl_channel = QLabel("Channel")
+        self.lbl_min     = QLabel("Min")
+        self.lbl_max     = QLabel("Max")
+        self.lbl_value   = QLabel("Value")
+        self.lbl_pulse   = QLabel("Pulse")
+
+        self.lbl_channel.setAlignment(Qt.AlignCenter)
+        self.lbl_channel.setMaximumHeight(10)
+        self.lbl_min.setAlignment(Qt.AlignCenter)
+        self.lbl_max.setAlignment(Qt.AlignCenter)
+        self.lbl_value.setAlignment(Qt.AlignCenter)
+        self.lbl_pulse.setAlignment(Qt.AlignCenter)
+
+        self.layout.addWidget(self.lbl_channel,row,1)
+        self.layout.addWidget(self.lbl_min,row,2)
+        self.layout.addWidget(self.lbl_max,row,3)
+        self.layout.addWidget(self.lbl_value,row,5)
+        self.layout.addWidget(self.lbl_pulse,row,6)
+
+        # Channel rows
+        self.slider = []
+        for channel in range(0,number_of_channels):
+            row+=1
+            self.slider.append({
+                                    'lbl_channel':  QLabel(str(channel)),
+                                    'txt_min': QLineEdit(self.setText(servo_min)),
+                                    'txt_max': QLineEdit(self.setText(servo_max)),
+                                    'slider': QSlider(Qt.Horizontal),
+                                    'txt_value': QLineEdit(self.setText(servo_initial_val)),
+                                    'btn_apply': QPushButton('Apply')
+                                })
+
+            self.slider[channel]['lbl_channel'].setAlignment(Qt.AlignCenter)
+
+            self.slider[channel]['txt_min'].setValidator(QIntValidator(0,4096))
+            self.slider[channel]['txt_min'].setMaxLength(4)
+            self.slider[channel]['txt_min'].setMaximumWidth(40)
+
+            self.slider[channel]['txt_max'].setValidator(QIntValidator(0,4096))
+            self.slider[channel]['txt_max'].setMaxLength(4)
+            self.slider[channel]['txt_max'].setMaximumWidth(40)
+
+            self.slider[channel]['slider'].setMinimum(servo_min)
+            self.slider[channel]['slider'].setMaximum(servo_max)
+            self.slider[channel]['slider'].setValue(servo_initial_val)
+            self.slider[channel]['slider'].setTickPosition(QSlider.TicksBelow)
+            self.slider[channel]['slider'].setTickInterval(25)
+            self.slider[channel]['slider'].setMinimumSize(100,10)
+            self.slider[channel]['slider'].valueChanged.connect(self.valueChanged)
+            self.slider[channel]['slider'].tooltip=str(channel)
+
+            self.slider[channel]['txt_value'].setValidator(QIntValidator())
+            self.slider[channel]['txt_value'].setMaxLength(4)
+            self.slider[channel]['txt_value'].setMaximumWidth(40)
+            self.slider[channel]['txt_value'].setAlignment(Qt.AlignRight)
+
+            self.slider[channel]['btn_apply'].tooltip=str(channel)
+            self.slider[channel]['btn_apply'].clicked.connect(self.applyChange)
+
+            self.layout.addWidget(self.slider[channel]['lbl_channel'],row,1)
+            self.layout.addWidget(self.slider[channel]['txt_min'],row,2)
+            self.layout.addWidget(self.slider[channel]['txt_max'],row,3)
+            self.layout.addWidget(self.slider[channel]['slider'],row,4)
+            self.layout.addWidget(self.slider[channel]['txt_value'],row,5)
+            self.layout.addWidget(self.slider[channel]['btn_apply'],row,6)
+            pwm.set_pwm(channel, 0, servo_initial_val)
+
+    def applyChange(self):
+        # Get the channel of the button from the button's tooltip
+        channel = int(self.sender().tooltip)
+        self.slider[channel]['slider'].setValue(int(self.slider[channel]['txt_value'].text()))
+        self.slider[channel]['slider'].setMinimum(int(self.slider[channel]['txt_min'].text()))
+        self.slider[channel]['slider'].setMaximum(int(self.slider[channel]['txt_max'].text()))
+        pwm.set_pwm(channel, 0, self.slider[channel]['slider'].value())
+
+
+    def valueChanged(self):
+        # Get the channel of the slider from the slider's' tooltip
+        channel = int(self.sender().tooltip)
+        self.slider[channel]['txt_value'].setText(str(self.slider[channel]['slider'].value()))
+        pwm.set_pwm(channel, 0, self.slider[channel]['slider'].value())
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    mw  = MainWindow()
+    mw.show()
+    sys.exit(app.exec_())
