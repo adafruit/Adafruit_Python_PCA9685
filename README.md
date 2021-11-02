@@ -1,3 +1,9 @@
+!! DEPRECATED !!
+================
+
+This library is deprecated and has been archived. Please use the new library here:
+https://github.com/adafruit/Adafruit_CircuitPython_PCA9685
+
 # Adafruit Python PCA9685
 Python code to use the PCA9685 PWM servo/LED controller with a Raspberry Pi or BeagleBone black.
 
